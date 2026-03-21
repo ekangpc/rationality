@@ -32,6 +32,7 @@ export const decisions = pgTable("decisions", {
 
   // Core thesis
   title: varchar("title", { length: 512 }).notNull(), // e.g. "Long NVDA", "Seed Acme Inc"
+  ticker: varchar("ticker", { length: 32 }), // optional ticker/asset symbol, e.g. "NVDA", "BTC"
   thesis: text("thesis").notNull(), // free-text: why you're making this bet
   keyAssumptions: text("key_assumptions"), // JSON array of assumption strings
   expectedOutcome: text("expected_outcome"), // what success looks like
@@ -54,10 +55,11 @@ export const thesisChallenges = pgTable("thesis_challenges", {
     .notNull()
     .references(() => decisions.id, { onDelete: "cascade" }),
 
-  // AI-generated content
-  strongestCounterArguments: text("strongest_counter_arguments").notNull(), // JSON array
-  implicitAssumptions: text("implicit_assumptions").notNull(), // JSON array
-  clarifyingQuestion: text("clarifying_question").notNull(), // single question
+  // AI-generated content (structured devil's advocate)
+  risks: text("risks").notNull(), // JSON array: specific risks the thesis overlooks
+  counterevidence: text("counterevidence").notNull(), // JSON array: data/facts against the thesis
+  missingAnalysis: text("missing_analysis").notNull(), // JSON array: what they didn't analyze
+  hardQuestion: text("hard_question").notNull(), // the uncomfortable question they haven't answered
 
   // User feedback on challenge quality
   qualityRating: integer("quality_rating"), // 1–5

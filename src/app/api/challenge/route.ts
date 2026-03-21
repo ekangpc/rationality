@@ -30,39 +30,50 @@ export async function POST(req: NextRequest) {
     ? (JSON.parse(decision.keyAssumptions) as string[])
     : [];
 
-  const prompt = `You are a sharp, direct devil's advocate for investment decisions. Your job is to challenge the thesis below with specific, high-quality counterarguments — not generic warnings.
+  const assetContext = decision.ticker
+    ? `Asset/ticker: ${decision.ticker}`
+    : "";
+
+  const prompt = `You are a rigorous devil's advocate for investment decisions. Your job is to systematically challenge the thesis below. Be specific, ruthless, and grounded — no generic warnings.
 
 INVESTMENT THESIS:
 Title: ${decision.title}
+${assetContext}
 Thesis: ${decision.thesis}
-${assumptions.length > 0 ? `Key assumptions the investor stated:\n${assumptions.map((a, i) => `${i + 1}. ${a}`).join("\n")}` : ""}
+${assumptions.length > 0 ? `Stated assumptions:\n${assumptions.map((a, i) => `${i + 1}. ${a}`).join("\n")}` : ""}
 ${decision.expectedOutcome ? `Expected outcome: ${decision.expectedOutcome}` : ""}
-${decision.premortemAnswer ? `If this fails, investor thinks: ${decision.premortemAnswer}` : ""}
+${decision.expectedTimeline ? `Timeline: ${decision.expectedTimeline}` : ""}
+${decision.premortemAnswer ? `If this fails, investor believes: ${decision.premortemAnswer}` : ""}
 
-Respond in JSON with this exact structure:
+Respond ONLY with this JSON (no markdown, no preamble):
 {
-  "strongestCounterArguments": [
-    "specific counter-argument 1 referencing the investor's own claims",
-    "specific counter-argument 2",
-    "specific counter-argument 3"
+  "risks": [
+    "A specific risk the investor's thesis creates or ignores — name it precisely, not generically",
+    "Another specific risk with concrete mechanism",
+    "A third risk"
   ],
-  "implicitAssumptions": [
-    "assumption the investor made but didn't state 1",
-    "assumption 2"
+  "counterevidence": [
+    "A specific fact, data point, or historical precedent that directly contradicts the thesis",
+    "Another piece of counterevidence — be concrete, cite the mechanism"
   ],
-  "clarifyingQuestion": "One hard question the investor probably hasn't answered"
+  "missingAnalysis": [
+    "A crucial factor the investor did not analyze that materially affects the thesis",
+    "Another gap in their analysis"
+  ],
+  "hardQuestion": "One specific question that, if the investor cannot answer it well, should make them reconsider this bet entirely"
 }
 
 Rules:
-- Each counterargument MUST reference specific language or claims from the thesis
-- "Have you considered competition?" is failure. Name the specific competitive risk their thesis implies.
-- Implicit assumptions must be genuinely unstated — do not repeat what they already wrote
-- The clarifying question must be uncomfortable and specific
+- Every item MUST reference the investor's specific claims, not generic investment principles
+- "Competition is a risk" is failure. Name the specific competitor or dynamic their thesis implies.
+- Counterevidence must be concrete (e.g., a specific market dynamic, valuation multiple, precedent)
+- Missing analysis should reveal a blind spot, not repeat what they said
+- The hard question must be uncomfortable and specific to this thesis
 - Be collegial but merciless`;
 
   const message = await anthropic.messages.create({
     model: "claude-sonnet-4-6",
-    max_tokens: 1024,
+    max_tokens: 1200,
     messages: [{ role: "user", content: prompt }],
   });
 
@@ -72,14 +83,14 @@ Rules:
   }
 
   let parsed: {
-    strongestCounterArguments: string[];
-    implicitAssumptions: string[];
-    clarifyingQuestion: string;
+    risks: string[];
+    counterevidence: string[];
+    missingAnalysis: string[];
+    hardQuestion: string;
   };
 
   try {
-    // Strip markdown code fences if present
-    const raw = content.text.replace(/^```json\n?/, "").replace(/\n?```$/, "");
+    const raw = content.text.replace(/^```json\n?/, "").replace(/\n?```$/, "").trim();
     parsed = JSON.parse(raw);
   } catch {
     return NextResponse.json({ error: "Failed to parse AI response" }, { status: 500 });
@@ -89,16 +100,18 @@ Rules:
     .insert(thesisChallenges)
     .values({
       decisionId,
-      strongestCounterArguments: JSON.stringify(parsed.strongestCounterArguments),
-      implicitAssumptions: JSON.stringify(parsed.implicitAssumptions),
-      clarifyingQuestion: parsed.clarifyingQuestion,
+      risks: JSON.stringify(parsed.risks),
+      counterevidence: JSON.stringify(parsed.counterevidence),
+      missingAnalysis: JSON.stringify(parsed.missingAnalysis),
+      hardQuestion: parsed.hardQuestion,
     })
     .returning();
 
   return NextResponse.json({
     id: challenge.id,
-    strongestCounterArguments: parsed.strongestCounterArguments,
-    implicitAssumptions: parsed.implicitAssumptions,
-    clarifyingQuestion: parsed.clarifyingQuestion,
+    risks: parsed.risks,
+    counterevidence: parsed.counterevidence,
+    missingAnalysis: parsed.missingAnalysis,
+    hardQuestion: parsed.hardQuestion,
   });
 }

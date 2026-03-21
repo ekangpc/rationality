@@ -8,6 +8,7 @@ export default function NewDecisionPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [form, setForm] = useState({
     title: "",
+    ticker: "",
     thesis: "",
     keyAssumptions: ["", "", ""],
     expectedOutcome: "",
@@ -32,6 +33,7 @@ export default function NewDecisionPage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         ...form,
+        ticker: form.ticker.trim() || null,
         keyAssumptions: assumptions,
       }),
     });
@@ -58,18 +60,33 @@ export default function NewDecisionPage() {
         </p>
 
         <form onSubmit={handleSubmit} className="space-y-6">
-          <div>
-            <label className="block text-sm font-medium mb-1">
-              Decision title *
-            </label>
-            <input
-              type="text"
-              required
-              value={form.title}
-              onChange={(e) => setForm({ ...form, title: e.target.value })}
-              placeholder="e.g. Long NVDA, Seed Acme Inc"
-              className="w-full border rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-black"
-            />
+          <div className="grid grid-cols-3 gap-4">
+            <div className="col-span-2">
+              <label className="block text-sm font-medium mb-1">
+                Decision title *
+              </label>
+              <input
+                type="text"
+                required
+                value={form.title}
+                onChange={(e) => setForm({ ...form, title: e.target.value })}
+                placeholder="e.g. Long NVDA, Seed Acme Inc"
+                className="w-full border rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-black"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">
+                Ticker / asset
+              </label>
+              <input
+                type="text"
+                value={form.ticker}
+                onChange={(e) => setForm({ ...form, ticker: e.target.value })}
+                placeholder="e.g. NVDA, BTC"
+                maxLength={16}
+                className="w-full border rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-black uppercase"
+              />
+            </div>
           </div>
 
           <div>
@@ -154,7 +171,7 @@ export default function NewDecisionPage() {
             disabled={isSubmitting}
             className="w-full bg-black text-white py-3 rounded-lg font-medium hover:bg-gray-800 transition-colors disabled:opacity-50"
           >
-            {isSubmitting ? "Saving..." : "Log decision & challenge thesis"}
+            {isSubmitting ? "Saving..." : "Log decision & challenge thesis →"}
           </button>
         </form>
       </main>

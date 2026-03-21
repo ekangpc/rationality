@@ -6,14 +6,16 @@ import Link from "next/link";
 
 interface Challenge {
   id: string;
-  strongestCounterArguments: string[];
-  implicitAssumptions: string[];
-  clarifyingQuestion: string;
+  risks: string[];
+  counterevidence: string[];
+  missingAnalysis: string[];
+  hardQuestion: string;
 }
 
 interface Decision {
   id: string;
   title: string;
+  ticker: string | null;
   thesis: string;
   keyAssumptions: string | null;
   expectedOutcome: string | null;
@@ -28,26 +30,31 @@ export default function DecisionPage() {
   const [decision, setDecision] = useState<Decision | null>(null);
   const [challenge, setChallenge] = useState<Challenge | null>(null);
   const [isChallenging, setIsChallenging] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [challengeError, setChallengeError] = useState<string | null>(null);
 
   useEffect(() => {
     fetch(`/api/decisions/${id}`)
       .then((r) => r.json())
-      .then(setDecision);
+      .then((d) => {
+        setDecision(d);
+        // Auto-run the challenge immediately on load
+        runChallenge(d.id);
+      });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
-  const runChallenge = async () => {
+  const runChallenge = async (decisionId: string) => {
     setIsChallenging(true);
-    setError(null);
+    setChallengeError(null);
     const res = await fetch("/api/challenge", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ decisionId: id }),
+      body: JSON.stringify({ decisionId }),
     });
     if (res.ok) {
       setChallenge(await res.json());
     } else {
-      setError("Failed to generate challenge. Try again.");
+      setChallengeError("Failed to generate challenge. Try again.");
     }
     setIsChallenging(false);
   };
@@ -76,7 +83,14 @@ export default function DecisionPage() {
       <main className="max-w-2xl mx-auto px-6 py-12 space-y-8">
         {/* Decision */}
         <div className="bg-white rounded-xl border p-6 space-y-4">
-          <h2 className="text-xl font-bold">{decision.title}</h2>
+          <div className="flex items-start gap-3">
+            <h2 className="text-xl font-bold flex-1">{decision.title}</h2>
+            {decision.ticker && (
+              <span className="bg-gray-100 text-gray-700 text-xs font-mono font-bold px-2 py-1 rounded">
+                {decision.ticker}
+              </span>
+            )}
+          </div>
           <div>
             <p className="text-xs text-gray-500 uppercase font-medium mb-1">Thesis</p>
             <p className="text-sm text-gray-800 whitespace-pre-wrap">{decision.thesis}</p>
@@ -104,56 +118,95 @@ export default function DecisionPage() {
         </div>
 
         {/* Challenge section */}
-        {!challenge ? (
-          <div className="text-center">
-            <button
-              onClick={runChallenge}
-              disabled={isChallenging}
-              className="bg-black text-white px-8 py-3 rounded-lg font-medium hover:bg-gray-800 transition-colors disabled:opacity-50"
-            >
-              {isChallenging ? "Challenging your thesis..." : "Challenge this thesis"}
-            </button>
-            {error && <p className="mt-3 text-red-500 text-sm">{error}</p>}
+        {isChallenging && (
+          <div className="text-center py-8">
+            <div className="inline-flex items-center gap-2 text-sm text-gray-500">
+              <svg className="animate-spin h-4 w-4 text-amber-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+              </svg>
+              Challenging your thesis...
+            </div>
           </div>
-        ) : (
-          <div className="bg-amber-50 border border-amber-200 rounded-xl p-6 space-y-6">
+        )}
+
+        {!isChallenging && challengeError && (
+          <div className="text-center">
+            <p className="text-red-500 text-sm mb-3">{challengeError}</p>
+            <button
+              onClick={() => runChallenge(decision.id)}
+              className="bg-black text-white px-6 py-2 rounded-lg text-sm font-medium hover:bg-gray-800 transition-colors"
+            >
+              Try again
+            </button>
+          </div>
+        )}
+
+        {challenge && (
+          <div className="space-y-4">
             <h3 className="font-bold text-lg">Devil&apos;s advocate</h3>
 
-            <div>
-              <p className="text-xs text-amber-700 uppercase font-medium mb-2">
-                Strongest counterarguments
+            {/* Risks */}
+            <div className="bg-red-50 border border-red-200 rounded-xl p-5 space-y-3">
+              <p className="text-xs text-red-700 uppercase font-semibold tracking-wide">
+                Risks you&apos;re carrying
               </p>
               <ul className="space-y-3">
-                {challenge.strongestCounterArguments.map((arg, i) => (
+                {challenge.risks.map((risk, i) => (
                   <li key={i} className="text-sm text-gray-800 flex gap-2">
-                    <span className="text-amber-500 font-bold">{i + 1}.</span>
-                    {arg}
+                    <span className="text-red-400 font-bold mt-0.5">▲</span>
+                    {risk}
                   </li>
                 ))}
               </ul>
             </div>
 
-            <div>
-              <p className="text-xs text-amber-700 uppercase font-medium mb-2">
-                Assumptions you didn&apos;t state
+            {/* Counterevidence */}
+            <div className="bg-orange-50 border border-orange-200 rounded-xl p-5 space-y-3">
+              <p className="text-xs text-orange-700 uppercase font-semibold tracking-wide">
+                Evidence against your thesis
               </p>
-              <ul className="space-y-2">
-                {challenge.implicitAssumptions.map((a, i) => (
+              <ul className="space-y-3">
+                {challenge.counterevidence.map((item, i) => (
                   <li key={i} className="text-sm text-gray-800 flex gap-2">
-                    <span className="text-amber-500">→</span> {a}
+                    <span className="text-orange-400 font-bold mt-0.5">↯</span>
+                    {item}
                   </li>
                 ))}
               </ul>
             </div>
 
-            <div className="bg-white rounded-lg p-4 border border-amber-200">
-              <p className="text-xs text-amber-700 uppercase font-medium mb-2">
-                The question you probably haven&apos;t answered
+            {/* Missing analysis */}
+            <div className="bg-amber-50 border border-amber-200 rounded-xl p-5 space-y-3">
+              <p className="text-xs text-amber-700 uppercase font-semibold tracking-wide">
+                What you didn&apos;t analyze
               </p>
-              <p className="text-sm font-medium text-gray-900">
-                {challenge.clarifyingQuestion}
+              <ul className="space-y-3">
+                {challenge.missingAnalysis.map((item, i) => (
+                  <li key={i} className="text-sm text-gray-800 flex gap-2">
+                    <span className="text-amber-500 font-bold mt-0.5">?</span>
+                    {item}
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            {/* Hard question */}
+            <div className="bg-white border-2 border-gray-900 rounded-xl p-5">
+              <p className="text-xs text-gray-500 uppercase font-semibold tracking-wide mb-2">
+                The question you haven&apos;t answered
+              </p>
+              <p className="text-sm font-semibold text-gray-900 leading-relaxed">
+                {challenge.hardQuestion}
               </p>
             </div>
+
+            <button
+              onClick={() => runChallenge(decision.id)}
+              className="text-sm text-gray-400 hover:text-gray-600 transition-colors"
+            >
+              Re-run challenge →
+            </button>
           </div>
         )}
       </main>

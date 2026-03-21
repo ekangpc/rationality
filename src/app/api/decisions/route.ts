@@ -22,7 +22,7 @@ export async function POST(req: NextRequest) {
   if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const body = await req.json();
-  const { title, thesis, keyAssumptions, expectedOutcome, expectedTimeline, premortemAnswer } = body;
+  const { title, ticker, thesis, keyAssumptions, expectedOutcome, expectedTimeline, premortemAnswer } = body;
 
   if (!title || !thesis) {
     return NextResponse.json({ error: "title and thesis are required" }, { status: 400 });
@@ -39,6 +39,7 @@ export async function POST(req: NextRequest) {
     .values({
       userId,
       title,
+      ticker: ticker ? ticker.trim().toUpperCase() : null,
       thesis,
       keyAssumptions: keyAssumptions ? JSON.stringify(keyAssumptions) : null,
       expectedOutcome: expectedOutcome ?? null,
