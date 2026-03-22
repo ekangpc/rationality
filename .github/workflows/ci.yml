@@ -35,4 +35,4 @@ jobs:
           NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: pk_test_dummy
           CLERK_SECRET_KEY: sk_test_dummy
           DATABASE_URL: postgresql://dummy:dummy@localhost/dummy
-          ANTHROPIC_API_KEY: sk-ant-dummy
+          OPENROUTER_API_KEY: sk-or-dummy
