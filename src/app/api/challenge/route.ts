@@ -5,7 +5,7 @@ import { decisions, thesisChallenges } from "@/db/schema";
 import { eq, and } from "drizzle-orm";
 
 const OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions";
-const OPENROUTER_MODEL = "anthropic/claude-sonnet-4-5";
+const OPENROUTER_MODEL = "minimax/minimax-01";
 
 export async function POST(req: NextRequest) {
   const { userId } = await auth();
