@@ -1,11 +1,11 @@
 import { auth } from "@clerk/nextjs/server";
 import { NextRequest, NextResponse } from "next/server";
-import Anthropic from "@anthropic-ai/sdk";
 import { db } from "@/db";
 import { decisions, thesisChallenges } from "@/db/schema";
 import { eq, and } from "drizzle-orm";
 
-const anthropic = new Anthropic();
+const OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions";
+const OPENROUTER_MODEL = "anthropic/claude-sonnet-4-5";
 
 export async function POST(req: NextRequest) {
   const { userId } = await auth();
@@ -71,16 +71,29 @@ Rules:
 - The hard question must be uncomfortable and specific to this thesis
 - Be collegial but merciless`;
 
-  const message = await anthropic.messages.create({
-    model: "claude-sonnet-4-6",
-    max_tokens: 1200,
-    messages: [{ role: "user", content: prompt }],
+  const aiRes = await fetch(OPENROUTER_API_URL, {
+    method: "POST",
+    headers: {
+      "Authorization": `Bearer ${process.env.OPENROUTER_API_KEY}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model: OPENROUTER_MODEL,
+      max_tokens: 1200,
+      messages: [{ role: "user", content: prompt }],
+    }),
   });
 
-  const content = message.content[0];
-  if (content.type !== "text") {
-    return NextResponse.json({ error: "Unexpected AI response" }, { status: 500 });
+  if (!aiRes.ok) {
+    const err = await aiRes.text();
+    console.error("OpenRouter error:", err);
+    return NextResponse.json({ error: "AI request failed" }, { status: 500 });
   }
+
+  const aiData = await aiRes.json() as {
+    choices: Array<{ message: { content: string } }>;
+  };
+  const rawText = aiData.choices?.[0]?.message?.content ?? "";
 
   let parsed: {
     risks: string[];
@@ -90,7 +103,7 @@ Rules:
   };
 
   try {
-    const raw = content.text.replace(/^```json\n?/, "").replace(/\n?```$/, "").trim();
+    const raw = rawText.replace(/^```json\n?/, "").replace(/\n?```$/, "").trim();
     parsed = JSON.parse(raw);
   } catch {
     return NextResponse.json({ error: "Failed to parse AI response" }, { status: 500 });
